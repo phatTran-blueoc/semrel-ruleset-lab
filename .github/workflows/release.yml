@@ -33,7 +33,7 @@ jobs:
           export GITHUB_REF=refs/heads/production
           npx --yes -p semantic-release@24.2.9 -p conventional-changelog-conventionalcommits@8.0.0 semantic-release --dry-run --no-ci | tee dry-run.log
           # Without a version line the run is a false green: fail it.
-          grep -qE "The next release version is|no relevant changes" dry-run.log \
+          grep -qiE "next release version is|no relevant changes" dry-run.log \
             || { echo "::error::semantic-release did not compute a version"; exit 1; }
 
   # Merge into production: create tag vX.Y.Z and the GitHub release notes.

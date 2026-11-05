@@ -1,0 +1,9 @@
+name: Probe release published
+on:
+  release:
+    types: [published]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "release published event fired for ${{ github.event.release.tag_name }}"

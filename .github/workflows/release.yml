@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  pull_request:
+    branches: [production]
+  push:
+    branches: [production]
+
+permissions:
+  contents: write
+
+jobs:
+  # Promotion PR (staging -> production): print the next version, publish nothing.
+  dry-run:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Next version (dry run)
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # On a PR the checkout is a detached merge ref and semantic-release reads
+          # GITHUB_REF=refs/pull/N/merge, so it refuses to run. GITHUB_* cannot be
+          # overridden through `env:`, only inside the shell.
+          git checkout -B production
+          export GITHUB_REF=refs/heads/production
+          npx --yes -p semantic-release@24.2.9 -p conventional-changelog-conventionalcommits@8.0.0 semantic-release --dry-run --no-ci | tee dry-run.log
+          # Without a version line the run is a false green: fail it.
+          grep -qE "The next release version is|no relevant changes" dry-run.log \
+            || { echo "::error::semantic-release did not compute a version"; exit 1; }
+
+  # Merge into production: create tag vX.Y.Z and the GitHub release notes.
+  release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Release
+        run: npx --yes -p semantic-release@24.2.9 -p conventional-changelog-conventionalcommits@8.0.0 semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
